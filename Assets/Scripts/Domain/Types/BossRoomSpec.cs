@@ -8,5 +8,5 @@ public sealed class BossRoomSpec : RoomTypeSpec
     public override int PreferredMinDegree => 1;
     public override int PreferredMaxDegree => 1;
 
-    public override Vector2Int MinSize => new Vector2Int(20, 20);
+    public override Vector2Int MinSize => new Vector2Int(10, 10);
 }

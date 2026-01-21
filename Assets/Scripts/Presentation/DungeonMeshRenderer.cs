@@ -11,13 +11,20 @@ public class DungeonMeshRenderer : MonoBehaviour
         Vector2Int.right
     };
 
-    public void Render(DungeonData data, Material material, float wallHeight, float wallThickness)
+    public void Render(DungeonData data, Material material, float wallHeight, float wallThickness, int doorGapWidth)
     {
+        if (data == null || data.Grid == null)
+            return;
+
+        doorGapWidth = Mathf.Max(1, doorGapWidth);
+        if (doorGapWidth % 2 == 0) doorGapWidth += 1;
+
         CellType[,] grid = data.Grid;
         int width = grid.GetLength(0);
         int depth = grid.GetLength(1);
 
-        List<Vector3> vertices = new List<Vector3>();
+        HashSet<WallSkipKey> wallSkipSet = BuildWallSkipSet(data, grid, doorGapWidth);
+List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
         List<Color> colors = new List<Color>();
 
@@ -35,6 +42,10 @@ public class DungeonMeshRenderer : MonoBehaviour
 
                 foreach (Vector2Int d in DIRS)
                 {
+                    WallSkipKey k = new WallSkipKey(new Vector2Int(x, z), d);
+                    if (wallSkipSet.Contains(k))
+                        continue;
+
                     int nx = x + d.x;
                     int nz = z + d.y;
 
@@ -74,8 +85,104 @@ public class DungeonMeshRenderer : MonoBehaviour
         mc.convex = false;
     }
 
+    private HashSet<WallSkipKey> BuildWallSkipSet(DungeonData data, CellType[,] grid, int doorGapWidth)
+    {
+        HashSet<WallSkipKey> wallSkipSet = new HashSet<WallSkipKey>(WallSkipKeyComparer.Instance);
+
+        if (data.Doors == null)
+            return wallSkipSet;
+
+        for (int i = 0; i < data.Doors.Count; i++)
+        {
+            Door d = data.Doors[i];
+
+            Vector2Int baseCell = ResolveWallBoundaryCell(grid, d.Cell, d.Normal);
+            if (baseCell.x == int.MinValue)
+                continue;
+
+            AddDoorGapFiltered(wallSkipSet, grid, baseCell, d.Normal, doorGapWidth);
+        }
+
+        return wallSkipSet;
+    }
+
+    private Vector2Int ResolveWallBoundaryCell(CellType[,] grid, Vector2Int cell, Vector2Int normal)
+    {
+        // We want a floor cell whose neighbor in 'normal' direction is empty/outside,
+        // because that's where a wall would normally be generated.
+        if (IsWallBoundary(grid, cell, normal))
+            return cell;
+
+        Vector2Int back = cell - normal;
+        if (IsWallBoundary(grid, back, normal))
+            return back;
+
+        // Not a valid boundary. Returning sentinel prevents accidental wall removal.
+        return new Vector2Int(int.MinValue, int.MinValue);
+    }
+
+    private bool IsWallBoundary(CellType[,] grid, Vector2Int cell, Vector2Int normal)
+    {
+        int w = grid.GetLength(0);
+        int d = grid.GetLength(1);
+
+        if (cell.x < 0 || cell.y < 0 || cell.x >= w || cell.y >= d)
+            return false;
+
+        if (grid[cell.x, cell.y] != CellType.Floor)
+            return false;
+
+        int nx = cell.x + normal.x;
+        int nz = cell.y + normal.y;
+
+        if (nx < 0 || nz < 0 || nx >= w || nz >= d)
+            return true;
+
+        return grid[nx, nz] == CellType.Empty;
+    }
+
+    private void AddDoorGapFiltered(HashSet<WallSkipKey> wallSkipSet, CellType[,] grid, Vector2Int cell, Vector2Int normal, int gapWidth)
+    {
+        int r = gapWidth / 2;
+
+        Vector2Int perp;
+        if (normal == Vector2Int.left || normal == Vector2Int.right)
+            perp = Vector2Int.up;
+        else
+            perp = Vector2Int.right;
+
+        for (int i = -r; i <= r; i++)
+        {
+            Vector2Int c = cell + perp * i;
+            if (!IsWallBoundary(grid, c, normal))
+                continue;
+
+            wallSkipSet.Add(new WallSkipKey(c, normal));
+        }
+    }
+
+    private void AddDoorGap(HashSet<WallSkipKey> wallSkipSet, Vector2Int cell, Vector2Int normal, int gapWidth)
+    {
+        int r = gapWidth / 2;
+
+        Vector2Int perp;
+        if (normal == Vector2Int.left || normal == Vector2Int.right)
+            perp = Vector2Int.up;
+        else
+            perp = Vector2Int.right;
+
+        for (int i = -r; i <= r; i++)
+        {
+            Vector2Int c = cell + perp * i;
+            wallSkipSet.Add(new WallSkipKey(c, normal));
+        }
+    }
+
     private Room FindRoomAt(List<Room> rooms, int x, int z)
     {
+        if (rooms == null)
+            return null;
+
         for (int i = 0; i < rooms.Count; i++)
         {
             if (rooms[i].ContainsCell(x, z))

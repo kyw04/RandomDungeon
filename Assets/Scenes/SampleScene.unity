@@ -472,6 +472,11 @@ MonoBehaviour:
   corridorStepX: 8
   corridorWidth: 3
   zDrift: 12
+  doorGapWidth: 0
+  doorPrefab: {fileID: 503842101914889936, guid: 77b660063f10cb3469d19f75f2aae354, type: 3}
+  doorPrefabBaseWidthUnits: 1
+  doorYOffset: 0
+  doorForwardOffset: 0
 --- !u!4 &1428111731
 Transform:
   m_ObjectHideFlags: 0

@@ -9,7 +9,10 @@ public class DungeonGenerator
     private readonly int mainRoomCount;
     private readonly Vector2Int roomMin;
     private readonly Vector2Int roomMax;
+
     private readonly int corridorStepX;
+    private readonly int corridorWidth;
+    private readonly int zDrift;
 
     private CellType[,] grid;
     private List<Room> rooms;
@@ -21,10 +24,6 @@ public class DungeonGenerator
     private readonly RoomTypeSpec bossSpec = new BossRoomSpec();
     private readonly RoomTypeSpec bonusSpec = new BonusRoomSpec();
     private readonly RoomTypeSpec junctionSpec = new JunctionRoomSpec();
-    private readonly int corridorWidth;
-    private readonly int zDrift;
-
-    private Dictionary<int, int> degree;
 
     public DungeonGenerator(
         int width,
@@ -47,19 +46,16 @@ public class DungeonGenerator
         this.zDrift = Mathf.Max(0, zDrift);
     }
 
-
     public DungeonData Generate()
     {
         grid = new CellType[width, depth];
         rooms = new List<Room>();
         doors = new List<Door>();
-        degree = new Dictionary<int, int>();
 
         Fill(CellType.Empty);
 
         int plannedCount = mainRoomCount;
         int shopIndex = plannedCount / 2;
-
         bool wantBonus = plannedCount >= 4;
 
         int junctionIndex = -1;
@@ -70,22 +66,26 @@ public class DungeonGenerator
 
         List<Room> mainPath = GenerateMainPathRooms(plannedCount, shopIndex, junctionIndex);
 
-        CreateMainPathDoors(mainPath);
+        CreateMainPathDoorsAndCorridors(mainPath);
 
-        Room bonus = null;
-        if (wantBonus && junctionIndex != -1 && junctionIndex < mainPath.Count)
+        if (wantBonus && junctionIndex >= 0 && junctionIndex < mainPath.Count)
         {
             Room parent = mainPath[junctionIndex];
-            bonus = TryGenerateBonusRoom(parent);
+            Room bonus = TryGenerateBonusRoom(parent);
             if (bonus != null)
             {
-                TryAddDoor(parent, bonus, new Vector2Int(parent.Center.x, parent.Center.z),
-                    BonusNormalFrom(parent, bonus));
-                CarveLShapedCorridor(
-                    new Vector2Int(parent.Center.x, parent.Center.z),
-                    new Vector2Int(bonus.Center.x, bonus.Center.z)
-                );
-            }
+                Vector2Int n = (bonus.Center.z >= parent.Center.z) ? Vector2Int.up : Vector2Int.down;
+
+Vector2Int from = (n == Vector2Int.up)
+    ? new Vector2Int(parent.Center.x, parent.Bounds.zMax - 1)
+    : new Vector2Int(parent.Center.x, parent.Bounds.z);
+
+Vector2Int to = (n == Vector2Int.up)
+    ? new Vector2Int(bonus.Center.x, bonus.Bounds.z)
+    : new Vector2Int(bonus.Center.x, bonus.Bounds.zMax - 1);
+
+AddDoorPair(parent, bonus, from, n, to, -n);
+CarveLShapedCorridorWide(from, to);}
         }
 
         return new DungeonData(grid, rooms, doors);
@@ -117,65 +117,6 @@ public class DungeonGenerator
             grid[x, z] = type;
     }
 
-    private List<Room> GenerateMainPathRooms(int plannedCount, int shopIndex, int junctionIndex)
-    {
-        List<Room> mainPath = new List<Room>();
-        int cursorX = 2;
-
-        for (int i = 0; i < plannedCount; i++)
-        {
-            RoomTypeSpec spec;
-
-            if (i == 0) spec = startSpec;
-            else if (i == plannedCount - 1) spec = bossSpec;
-            else if (i == shopIndex) spec = shopSpec;
-            else if (i == junctionIndex) spec = junctionSpec;
-            else spec = normalSpec;
-            
-            Vector2Int size = SampleRoomSize(spec);
-            int w = size.x;
-            int d = size.y;
-
-            if (cursorX + w + 2 >= width)
-                break;
-            
-            int prevZCenter = (mainPath.Count == 0) ? (depth / 2) : mainPath[mainPath.Count - 1].Center.z;
-
-            int zMinBase = 2;
-            int zMaxBase = depth - d - 2;
-            if (zMinBase >= zMaxBase)
-                break;
-
-            int drift = zDrift;
-            int targetZ = prevZCenter - (d / 2);
-
-            int zMin = Mathf.Clamp(targetZ - drift, zMinBase, zMaxBase);
-            int zMax = Mathf.Clamp(targetZ + drift, zMinBase, zMaxBase);
-
-            int z = Random.Range(zMin, zMax + 1);
-
-            BoundsInt b = new BoundsInt(cursorX, 0, z, w, 1, d);
-
-            int id = rooms.Count;
-            Room room = new Room(id, b, spec);
-            rooms.Add(room);
-            mainPath.Add(room);
-
-            degree[id] = 0;
-
-            CarveRoomFloor(b);
-
-            cursorX += w + corridorStepX;
-        }
-
-        if (mainPath.Count >= 2)
-        {
-            EnsureLastIsBoss(mainPath);
-        }
-
-        return mainPath;
-    }
-    
     private Vector2Int SampleRoomSize(RoomTypeSpec spec)
     {
         int minW = Mathf.Max(roomMin.x, spec.MinSize.x);
@@ -193,6 +134,60 @@ public class DungeonGenerator
         return new Vector2Int(w, d);
     }
 
+    private List<Room> GenerateMainPathRooms(int plannedCount, int shopIndex, int junctionIndex)
+    {
+        List<Room> mainPath = new List<Room>();
+        int cursorX = 2;
+
+        for (int i = 0; i < plannedCount; i++)
+        {
+            RoomTypeSpec spec;
+            if (i == 0) spec = startSpec;
+            else if (i == plannedCount - 1) spec = bossSpec;
+            else if (i == shopIndex) spec = shopSpec;
+            else if (i == junctionIndex) spec = junctionSpec;
+            else spec = normalSpec;
+
+            Vector2Int size = SampleRoomSize(spec);
+            int w = size.x;
+            int d = size.y;
+
+            if (cursorX + w + 2 >= width)
+                break;
+
+            int zMinBase = 2;
+            int zMaxBase = depth - d - 2;
+            if (zMinBase >= zMaxBase)
+                break;
+
+            int prevZCenter = (mainPath.Count == 0) ? (depth / 2) : mainPath[mainPath.Count - 1].Center.z;
+            int targetZ = prevZCenter - (d / 2);
+
+            int zMin = Mathf.Clamp(targetZ - zDrift, zMinBase, zMaxBase);
+            int zMax = Mathf.Clamp(targetZ + zDrift, zMinBase, zMaxBase);
+
+            int z = Random.Range(zMin, zMax + 1);
+
+            BoundsInt b = new BoundsInt(cursorX, 0, z, w, 1, d);
+
+            int id = rooms.Count;
+            Room room = new Room(id, b, spec);
+            rooms.Add(room);
+            mainPath.Add(room);
+
+            CarveRoomFloor(b);
+
+            cursorX += w + corridorStepX;
+        }
+
+        if (mainPath.Count >= 2)
+        {
+            EnsureLastIsBoss(mainPath);
+        }
+
+        return mainPath;
+    }
+
     private void EnsureLastIsBoss(List<Room> mainPath)
     {
         int lastIndex = mainPath.Count - 1;
@@ -206,34 +201,11 @@ public class DungeonGenerator
         mainPath[lastIndex] = replaced;
     }
 
-    private void CarveRoomFloor(BoundsInt b)
-    {
-        for (int z = b.z; z < b.zMax; z++)
-        for (int x = b.x; x < b.xMax; x++)
-            grid[x, z] = CellType.Floor;
-    }
-
-    private void CreateMainPathDoors(List<Room> mainPath)
-    {
-        for (int i = 0; i < mainPath.Count - 1; i++)
-        {
-            Room a = mainPath[i];
-            Room b = mainPath[i + 1];
-
-            Vector2Int from = a.ExitRight;
-            Vector2Int to = b.ExitLeft;
-
-            TryAddDoor(a, b, from, Vector2Int.right);
-            TryAddDoor(b, a, to, Vector2Int.left);
-
-            CarveLShapedCorridor(from, to);
-        }
-    }
-
     private Room TryGenerateBonusRoom(Room parent)
     {
-        int w = Random.Range(roomMin.x, roomMax.x + 1);
-        int d = Random.Range(roomMin.y, roomMax.y + 1);
+        Vector2Int size = SampleRoomSize(bonusSpec);
+        int w = size.x;
+        int d = size.y;
 
         bool placeUp = Random.value > 0.5f;
 
@@ -248,60 +220,68 @@ public class DungeonGenerator
         if (!IsInsideGrid(b))
             return null;
 
+        if (OverlapsExistingRooms(b))
+            return null;
+
         int id = rooms.Count;
         Room bonus = new Room(id, b, bonusSpec, parent);
         rooms.Add(bonus);
-        degree[id] = 0;
 
         CarveRoomFloor(b);
 
         return bonus;
     }
 
-    private Vector2Int BonusNormalFrom(Room parent, Room bonus)
+    private bool OverlapsExistingRooms(BoundsInt b)
     {
-        int dz = bonus.Center.z - parent.Center.z;
-        if (dz >= 0) return Vector2Int.up;
-        return Vector2Int.down;
-    }
-
-    private bool TryAddDoor(Room from, Room to, Vector2Int cell, Vector2Int normal)
-    {
-        if (!CanAddConnection(from))
-            return false;
-
-        if (!CanAddConnection(to))
-            return false;
-
-        if (IsAlreadyConnected(from.Id, to.Id))
-            return false;
-
-        doors.Add(new Door(from.Id, to.Id, cell, normal));
-
-        degree[from.Id] = degree[from.Id] + 1;
-        degree[to.Id] = degree[to.Id] + 1;
-
-        return true;
-    }
-
-    private bool IsAlreadyConnected(int a, int b)
-    {
-        for (int i = 0; i < doors.Count; i++)
+        for (int i = 0; i < rooms.Count; i++)
         {
-            Door d = doors[i];
-            if ((d.A == a && d.B == b) || (d.A == b && d.B == a))
+            BoundsInt r = rooms[i].Bounds;
+            BoundsInt expanded = new BoundsInt(r.x - 1, 0, r.z - 1, r.size.x + 2, 1, r.size.z + 2);
+            if (IntersectsXZ(expanded, b))
                 return true;
         }
+
         return false;
     }
-
-    private bool CanAddConnection(Room room)
+    
+    private bool IntersectsXZ(BoundsInt a, BoundsInt b)
     {
-        int cur = degree.ContainsKey(room.Id) ? degree[room.Id] : 0;
-        return cur < room.Type.PreferredMaxDegree;
+        bool xOverlap = a.xMin < b.xMax && a.xMax > b.xMin;
+        bool zOverlap = a.zMin < b.zMax && a.zMax > b.zMin;
+        return xOverlap && zOverlap;
+    }
+    
+    private void CarveRoomFloor(BoundsInt b)
+    {
+        for (int z = b.z; z < b.zMax; z++)
+        for (int x = b.x; x < b.xMax; x++)
+            grid[x, z] = CellType.Floor;
     }
 
-    private void CarveLShapedCorridor(Vector2Int a, Vector2Int b)
+
+    private void CreateMainPathDoorsAndCorridors(List<Room> mainPath)
+    {
+        for (int i = 0; i < mainPath.Count - 1; i++)
+        {
+            Room a = mainPath[i];
+            Room b = mainPath[i + 1];
+
+            Vector2Int from = a.ExitRight;
+            Vector2Int to = b.ExitLeft;
+
+            AddDoorPair(a, b, from, Vector2Int.right, to, Vector2Int.left);
+            CarveLShapedCorridorWide(from, to);
+        }
+    }
+
+    private void AddDoorPair(Room a, Room b, Vector2Int aCell, Vector2Int aNormal, Vector2Int bCell, Vector2Int bNormal)
+    {
+        doors.Add(new Door(a.Id, b.Id, aCell, aNormal));
+        doors.Add(new Door(b.Id, a.Id, bCell, bNormal));
+    }
+
+    private void CarveLShapedCorridorWide(Vector2Int a, Vector2Int b)
     {
         int xMin = Mathf.Min(a.x, b.x);
         int xMax = Mathf.Max(a.x, b.x);
@@ -315,7 +295,7 @@ public class DungeonGenerator
         for (int z = zMin; z <= zMax; z++)
             CarveCellWide(b.x, z);
     }
-     
+
     private void CarveCellWide(int x, int z)
     {
         int r = corridorWidth / 2;
