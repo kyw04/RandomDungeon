@@ -44,25 +44,16 @@ public sealed class DungeonDoorRenderer : MonoBehaviour
         Transform parent = new GameObject("DungeonDoors").transform;
         parent.SetParent(transform, false);
 
-        // De-dup by resolved (boundaryCell + normal)
-        HashSet<WallSkipKey> placed = new HashSet<WallSkipKey>(WallSkipKeyComparer.Instance);
+        // Place only one instance per connection (the generator stores A->B and B->A).
+// We render only when A < B to avoid duplicates.
+CellType[,] grid = data.Grid;
 
-        CellType[,] grid = data.Grid;
-
-        for (int i = 0; i < data.Doors.Count; i++)
-        {
-            Door door = data.Doors[i];
-
-            Vector2Int baseCell = ResolveWallBoundaryCell(grid, door.Cell, door.Normal);
-            if (baseCell.x == int.MinValue)
-                continue;
-
-            WallSkipKey key = new WallSkipKey(baseCell, door.Normal);
-            if (!placed.Add(key))
-                continue;
-
+for (int i = 0; i < data.Doors.Count; i++)
+{Door door = data.Doors[i];
+if (door.A >= door.B)
+    continue;
             Vector3 n3 = new Vector3(door.Normal.x, 0f, door.Normal.y);
-            Vector3 cellCenter = new Vector3(baseCell.x + 0.5f, 0f, baseCell.y + 0.5f);
+            Vector3 cellCenter = new Vector3(door.Cell.x + 0.5f, 0f, door.Cell.y + 0.5f);
 
             // Same plane as AddWallBox: center + normal * 0.5
             Vector3 pos = cellCenter + n3 * 0.5f;
@@ -70,7 +61,7 @@ public sealed class DungeonDoorRenderer : MonoBehaviour
             Quaternion rot = RotationFromNormal(door.Normal);
 
             GameObject go = Instantiate(doorPrefab, parent);
-            go.name = $"Door_{baseCell.x}_{baseCell.y}_{door.Normal.x}_{door.Normal.y}";
+            go.name = $"Door_{door.A}_{door.B}_{door.Cell.x}_{door.Cell.y}_{door.Normal.x}_{door.Normal.y}";
 
             Vector3 forward = rot * Vector3.forward;
             go.transform.SetPositionAndRotation(pos + Vector3.up * yOffset + forward * forwardOffset, rot);
@@ -93,37 +84,5 @@ public sealed class DungeonDoorRenderer : MonoBehaviour
         Vector3 f = new Vector3(normal.x, 0f, normal.y);
         if (f.sqrMagnitude < 0.0001f) f = Vector3.forward;
         return Quaternion.LookRotation(f.normalized, Vector3.up);
-    }
-
-    private static Vector2Int ResolveWallBoundaryCell(CellType[,] grid, Vector2Int cell, Vector2Int normal)
-    {
-        if (IsWallBoundary(grid, cell, normal))
-            return cell;
-
-        Vector2Int back = cell - normal;
-        if (IsWallBoundary(grid, back, normal))
-            return back;
-
-        return new Vector2Int(int.MinValue, int.MinValue);
-    }
-
-    private static bool IsWallBoundary(CellType[,] grid, Vector2Int cell, Vector2Int normal)
-    {
-        int w = grid.GetLength(0);
-        int d = grid.GetLength(1);
-
-        if (cell.x < 0 || cell.y < 0 || cell.x >= w || cell.y >= d)
-            return false;
-
-        if (grid[cell.x, cell.y] != CellType.Floor)
-            return false;
-
-        int nx = cell.x + normal.x;
-        int nz = cell.y + normal.y;
-
-        if (nx < 0 || nz < 0 || nx >= w || nz >= d)
-            return true;
-
-        return grid[nx, nz] == CellType.Empty;
     }
 }

@@ -22,8 +22,6 @@ public class DungeonMeshRenderer : MonoBehaviour
         CellType[,] grid = data.Grid;
         int width = grid.GetLength(0);
         int depth = grid.GetLength(1);
-
-        HashSet<WallSkipKey> wallSkipSet = BuildWallSkipSet(data, grid, doorGapWidth);
 List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
         List<Color> colors = new List<Color>();
@@ -41,12 +39,7 @@ List<Vector3> vertices = new List<Vector3>();
                 AddFloorColored(vertices, triangles, colors, x, z, floorColor);
 
                 foreach (Vector2Int d in DIRS)
-                {
-                    WallSkipKey k = new WallSkipKey(new Vector2Int(x, z), d);
-                    if (wallSkipSet.Contains(k))
-                        continue;
-
-                    int nx = x + d.x;
+                {                    int nx = x + d.x;
                     int nz = z + d.y;
 
                     if (nx < 0 || nz < 0 || nx >= width || nz >= depth ||
@@ -85,6 +78,8 @@ List<Vector3> vertices = new List<Vector3>();
         mc.convex = false;
     }
 
+    // NOTE: Door openings are handled by floor carving + door prefabs.
+    // WallSkipKey-based wall cutting is disabled to avoid opening outer boundary walls.
     private HashSet<WallSkipKey> BuildWallSkipSet(DungeonData data, CellType[,] grid, int doorGapWidth)
     {
         HashSet<WallSkipKey> wallSkipSet = new HashSet<WallSkipKey>(WallSkipKeyComparer.Instance);
