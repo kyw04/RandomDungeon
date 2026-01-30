@@ -441,7 +441,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1428111731}
-  - component: {fileID: 1428111730}
+  - component: {fileID: 1428111732}
   m_Layer: 0
   m_Name: DungeonController
   m_TagString: Untagged
@@ -449,34 +449,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1428111730
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428111729}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 84ea48476cc10cb4c8ca7bae2843da67, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DungeonController
-  width: 160
-  depth: 160
-  mainRoomCount: 7
-  roomMin: {x: 12, y: 12}
-  roomMax: {x: 20, y: 20}
-  dungeonMaterial: {fileID: 2100000, guid: b015baac080da224b8fa88455c4b2adb, type: 2}
-  wallHeight: 5
-  wallThickness: 0.25
-  corridorStepX: 8
-  corridorWidth: 3
-  zDrift: 12
-  doorGapWidth: 0
-  doorPrefab: {fileID: 503842101914889936, guid: 77b660063f10cb3469d19f75f2aae354, type: 3}
-  doorPrefabBaseWidthUnits: 1
-  doorYOffset: 0
-  doorForwardOffset: 0
 --- !u!4 &1428111731
 Transform:
   m_ObjectHideFlags: 0
@@ -492,6 +464,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1428111732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1428111729}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b3506704a142ed43a70ae2965cf3e3c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractiveDungeonController
+  width: 800
+  depth: 400
+  roomMin: {x: 6, y: 6}
+  roomMax: {x: 12, y: 12}
+  corridorWidth: 3
+  corridorLength: 6
+  dungeonMaterial: {fileID: 2100000, guid: b015baac080da224b8fa88455c4b2adb, type: 2}
+  wallHeight: 3
+  wallThickness: 0.25
+  doorPrefab: {fileID: 503842101914889936, guid: 77b660063f10cb3469d19f75f2aae354, type: 3}
+  doorPrefabBaseWidthUnits: 1
+  doorYOffset: 0
+  doorForwardOffset: 0
+  uiFont: {fileID: 0}
+  player: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
