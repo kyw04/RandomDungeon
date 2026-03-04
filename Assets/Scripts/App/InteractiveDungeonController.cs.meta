@@ -1,2 +1,15 @@
 fileFormatVersion: 2
 guid: 1b3506704a142ed43a70ae2965cf3e3c
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - dungeonMaterial: {fileID: 2100000, guid: b015baac080da224b8fa88455c4b2adb, type: 2}
+  - doorPrefab: {instanceID: 0}
+  - uiFont: {instanceID: 0}
+  - player: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

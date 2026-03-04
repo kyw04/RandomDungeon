@@ -76,16 +76,17 @@ public class DungeonGenerator
             {
                 Vector2Int n = (bonus.Center.z >= parent.Center.z) ? Vector2Int.up : Vector2Int.down;
 
-Vector2Int from = (n == Vector2Int.up)
-    ? new Vector2Int(parent.Center.x, parent.Bounds.zMax - 1)
-    : new Vector2Int(parent.Center.x, parent.Bounds.z);
+                Vector2Int from = (n == Vector2Int.up)
+                    ? new Vector2Int(parent.Center.x, parent.Bounds.zMax - 1)
+                    : new Vector2Int(parent.Center.x, parent.Bounds.z);
 
-Vector2Int to = (n == Vector2Int.up)
-    ? new Vector2Int(bonus.Center.x, bonus.Bounds.z)
-    : new Vector2Int(bonus.Center.x, bonus.Bounds.zMax - 1);
+                Vector2Int to = (n == Vector2Int.up)
+                    ? new Vector2Int(bonus.Center.x, bonus.Bounds.z)
+                    : new Vector2Int(bonus.Center.x, bonus.Bounds.zMax - 1);
 
-AddDoorPair(parent, bonus, from, n, to, -n);
-CarveLShapedCorridorWide(from, to);}
+                AddDoorPair(parent, bonus, from, n, to, -n);
+                CarveLShapedCorridorWide(from, to);
+            }
         }
 
         return new DungeonData(grid, rooms, doors);

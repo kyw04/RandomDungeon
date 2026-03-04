@@ -45,13 +45,15 @@ public sealed class DungeonDoorRenderer : MonoBehaviour
         parent.SetParent(transform, false);
 
         // Place only one instance per connection (the generator stores A->B and B->A).
-// We render only when A < B to avoid duplicates.
-CellType[,] grid = data.Grid;
+        // We render only when A < B to avoid duplicates.
+        CellType[,] grid = data.Grid;
 
-for (int i = 0; i < data.Doors.Count; i++)
-{Door door = data.Doors[i];
-if (door.A >= door.B)
-    continue;
+        for (int i = 0; i < data.Doors.Count; i++)
+        {
+            Door door = data.Doors[i];
+            if (door.A >= door.B)
+                continue;
+            
             Vector3 n3 = new Vector3(door.Normal.x, 0f, door.Normal.y);
             Vector3 cellCenter = new Vector3(door.Cell.x + 0.5f, 0f, door.Cell.y + 0.5f);
 

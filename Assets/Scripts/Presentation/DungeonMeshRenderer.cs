@@ -22,7 +22,7 @@ public class DungeonMeshRenderer : MonoBehaviour
         CellType[,] grid = data.Grid;
         int width = grid.GetLength(0);
         int depth = grid.GetLength(1);
-List<Vector3> vertices = new List<Vector3>();
+        List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
         List<Color> colors = new List<Color>();
 
